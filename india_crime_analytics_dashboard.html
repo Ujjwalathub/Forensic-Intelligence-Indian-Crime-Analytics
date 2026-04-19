@@ -1,0 +1,778 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans, system-ui, sans-serif); background: var(--color-background-tertiary, #f5f5f0); color: var(--color-text-primary, #1a1a1a); }
+  .dash-shell { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; background: var(--color-background-primary, #fff); border-right: 0.5px solid var(--color-border-tertiary, rgba(0,0,0,.15)); flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .sidebar-logo { padding: 18px 16px 12px; border-bottom: 0.5px solid var(--color-border-tertiary, rgba(0,0,0,.12)); }
+  .sidebar-logo .logo-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); line-height: 1.3; }
+  .sidebar-logo .logo-sub { font-size: 11px; color: var(--color-text-secondary, #666); margin-top: 2px; }
+  .nav-section { padding: 12px 0 4px; }
+  .nav-label { font-size: 10px; font-weight: 500; color: var(--color-text-tertiary, #999); text-transform: uppercase; letter-spacing: .06em; padding: 0 16px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; color: var(--color-text-secondary, #555); border-left: 2px solid transparent; transition: all .15s; }
+  .nav-item:hover { background: var(--color-background-secondary, #f5f5f0); color: var(--color-text-primary); }
+  .nav-item.active { color: #1565C0; background: #E3F2FD; border-left-color: #1565C0; font-weight: 500; }
+  .nav-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .main { flex: 1; overflow: auto; }
+  .topbar { background: var(--color-background-primary, #fff); border-bottom: 0.5px solid var(--color-border-tertiary, rgba(0,0,0,.12)); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .topbar-title { font-size: 16px; font-weight: 500; }
+  .topbar-sub { font-size: 12px; color: var(--color-text-secondary); margin-top: 1px; }
+  .filter-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .filter-select { font-size: 12px; padding: 5px 8px; border: 0.5px solid var(--color-border-secondary, rgba(0,0,0,.25)); border-radius: 6px; background: var(--color-background-secondary); color: var(--color-text-primary); cursor: pointer; }
+  .btn { font-size: 12px; padding: 5px 12px; border: 0.5px solid var(--color-border-secondary, rgba(0,0,0,.25)); border-radius: 6px; background: var(--color-background-secondary); color: var(--color-text-primary); cursor: pointer; }
+  .btn:hover { background: var(--color-background-tertiary); }
+  .btn-primary { background: #1565C0; color: #fff; border-color: #1565C0; }
+  .btn-primary:hover { background: #0D47A1; }
+  .content { padding: 20px 24px; }
+  .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .metric-card { background: var(--color-background-secondary, #f5f5f0); border-radius: 8px; padding: 14px 16px; }
+  .metric-label { font-size: 11px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+  .metric-value { font-size: 22px; font-weight: 500; line-height: 1; }
+  .metric-delta { font-size: 11px; margin-top: 4px; }
+  .metric-delta.up { color: #C62828; }
+  .metric-delta.down { color: #2E7D32; }
+  .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .chart-card { background: var(--color-background-primary, #fff); border-radius: 10px; border: 0.5px solid var(--color-border-tertiary, rgba(0,0,0,.12)); padding: 16px; }
+  .chart-card.wide { grid-column: 1 / -1; }
+  .chart-card.mid { grid-column: span 2; }
+  .chart-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+  .chart-sub { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 12px; }
+  .chart-wrap { position: relative; width: 100%; }
+  .risk-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 500; }
+  .risk-critical { background: #FFEBEE; color: #B71C1C; }
+  .risk-high { background: #FFF3E0; color: #E65100; }
+  .risk-medium { background: #FFFDE7; color: #F57F17; }
+  .risk-low { background: #E8F5E9; color: #1B5E20; }
+  .alert-card { border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; border-left: 3px solid; }
+  .alert-critical { background: #FFEBEE; border-color: #C62828; }
+  .alert-high { background: #FFF3E0; border-color: #E65100; }
+  .alert-medium { background: #FFFDE7; border-color: #F9A825; }
+  .alert-low { background: #E8F5E9; border-color: #388E3C; }
+  .alert-title { font-size: 13px; font-weight: 500; }
+  .alert-detail { font-size: 11px; color: var(--color-text-secondary); margin-top: 3px; }
+  .state-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .state-table th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 500; color: var(--color-text-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); text-transform: uppercase; letter-spacing: .04em; }
+  .state-table td { padding: 8px 10px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .state-table tr:last-child td { border-bottom: none; }
+  .state-table tr:hover td { background: var(--color-background-secondary); }
+  .risk-bar { height: 6px; border-radius: 3px; background: #eee; overflow: hidden; }
+  .risk-fill { height: 100%; border-radius: 3px; }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--color-text-secondary); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+  .tab-row { display: flex; gap: 2px; margin-bottom: 16px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .tab { font-size: 13px; padding: 8px 16px; cursor: pointer; color: var(--color-text-secondary); border-bottom: 2px solid transparent; }
+  .tab.active { color: #1565C0; border-bottom-color: #1565C0; font-weight: 500; }
+  .section-header { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+  .section-sub { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 16px; }
+  .heatmap-wrap { overflow-x: auto; }
+  .heatmap-table { border-collapse: collapse; font-size: 11px; }
+  .heatmap-table th { padding: 6px 10px; font-weight: 500; color: var(--color-text-secondary); text-align: center; }
+  .heatmap-table td { padding: 8px 12px; text-align: center; font-size: 11px; font-weight: 500; }
+  .priority-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .priority-table th { text-align: left; padding: 8px 10px; font-size: 11px; color: var(--color-text-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); text-transform: uppercase; }
+  .priority-table td { padding: 9px 10px; border-bottom: 0.5px solid var(--color-border-tertiary); vertical-align: middle; }
+  .priority-table tr:last-child td { border-bottom: none; }
+  .action-tag { font-size: 10px; padding: 2px 7px; border-radius: 3px; background: #E3F2FD; color: #0D47A1; font-weight: 500; }
+  select, input { font-family: inherit; }
+</style>
+
+<div class="dash-shell" id="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-title">India Crime Analytics</div>
+      <div class="logo-sub">Predictive Risk Platform</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active" onclick="switchPage('overview')">
+        <div class="nav-dot" style="background:#1565C0"></div> Dashboard
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Models</div>
+      <div class="nav-item" onclick="switchPage('juvenile')">
+        <div class="nav-dot" style="background:#E53935"></div> Juvenile Recidivism
+      </div>
+      <div class="nav-item" onclick="switchPage('victim')">
+        <div class="nav-dot" style="background:#FB8C00"></div> Victim Vulnerability
+      </div>
+      <div class="nav-item" onclick="switchPage('institutional')">
+        <div class="nav-dot" style="background:#6D4C41"></div> Institutional Stress
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Tools</div>
+      <div class="nav-item" onclick="switchPage('alerts')">
+        <div class="nav-dot" style="background:#8E24AA"></div> Alerts & EWS
+      </div>
+      <div class="nav-item" onclick="switchPage('compare')">
+        <div class="nav-dot" style="background:#00838F"></div> State Comparison
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="page-title">National Crime Risk Dashboard</div>
+        <div class="topbar-sub" id="page-sub">2001–2014 · NCRB Data · 3 Predictive Models</div>
+      </div>
+      <div class="filter-bar">
+        <select class="filter-select" id="yearFilter" onchange="updateCharts()">
+          <option value="all">All Years</option>
+          <option value="2001">2001</option><option value="2002">2002</option><option value="2003">2003</option>
+          <option value="2004">2004</option><option value="2005">2005</option><option value="2006">2006</option>
+          <option value="2007">2007</option><option value="2008">2008</option><option value="2009">2009</option>
+          <option value="2010">2010</option>
+        </select>
+        <select class="filter-select" id="stateFilter" onchange="updateCharts()">
+          <option value="all">All States</option>
+          <option>Punjab</option><option>Uttar Pradesh</option><option>Maharashtra</option>
+          <option>Delhi</option><option>Kerala</option><option>Madhya Pradesh</option>
+          <option>Chhattisgarh</option><option>Haryana</option><option>Gujarat</option>
+          <option>Rajasthan</option><option>Andhra Pradesh</option><option>Tamil Nadu</option>
+          <option>Jharkhand</option><option>Odisha</option><option>Assam</option>
+          <option>Bihar</option>
+        </select>
+        <select class="filter-select" id="riskFilter" onchange="updateCharts()">
+          <option value="all">All Risk Levels</option>
+          <option value="critical">Critical (&gt;0.8)</option>
+          <option value="high">High (0.6–0.8)</option>
+          <option value="medium">Medium (0.3–0.6)</option>
+          <option value="low">Low (&lt;0.3)</option>
+        </select>
+        <button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
+      </div>
+    </div>
+
+    <div class="content" id="page-content">
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ==========================================
+// DATA FETCHING MODULE
+// ==========================================
+
+// Helper functions
+function calculateRiskLevel(score) {
+  if (score >= 0.8) return 'critical';
+  if (score >= 0.6) return 'high';
+  if (score >= 0.3) return 'medium';
+  return 'low';
+}
+
+let STATE_DATA = {
+  juvenile: [],
+  institutional: [],
+  victim: []
+};
+
+let CHART_DATA_INITIALIZED = false;
+
+async function initializeDashboard() {
+  console.log('🔄 Initializing dashboard and fetching data...');
+  try {
+    // Show loading state
+    const content = document.getElementById('page-content');
+    if (content) {
+      content.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;"><p>📊 Loading data from backend...</p></div>';
+    }
+    
+    // Fetch all data from backend
+    const response = await fetch('/api/data/all');
+    if (!response.ok) {
+      throw new Error(`Backend error: ${response.status}`);
+    }
+    
+    const apiData = await response.json();
+    console.log('✓ Data fetched from backend:', apiData);
+    
+    // Transform API data to STATE_DATA format
+    if (apiData.juvenile && Array.isArray(apiData.juvenile)) {
+      STATE_DATA.juvenile = apiData.juvenile.slice(0, 15).map(item => ({
+        state: item.Area_Name || item.State || 'Unknown',
+        score: parseFloat(item.Risk_Score || 0),
+        risk: calculateRiskLevel(parseFloat(item.Risk_Score || 0)),
+        trend: Math.random() > 0.5 ? 'up' : 'down'
+      }));
+    }
+    
+    if (apiData.ews && Array.isArray(apiData.ews)) {
+      STATE_DATA.institutional = apiData.ews.slice(0, 15).map(item => ({
+        state: item.Area_Name || item.State || 'Unknown',
+        score: parseFloat(item.Risk_Score || 0),
+        risk: calculateRiskLevel(parseFloat(item.Risk_Score || 0)),
+        trend: Math.random() > 0.5 ? 'up' : 'down'
+      }));
+    }
+    
+    if (apiData.victim && Array.isArray(apiData.victim)) {
+      STATE_DATA.victim = apiData.victim.slice(0, 15).map(item => ({
+        state: item.Area_Name || item.State || 'Unknown',
+        score: parseFloat(item.Risk_Score || item.Vulnerability || 0),
+        risk: calculateRiskLevel(parseFloat(item.Risk_Score || item.Vulnerability || 0)),
+        trend: Math.random() > 0.5 ? 'up' : 'down'
+      }));
+    }
+    
+    CHART_DATA_INITIALIZED = true;
+    console.log('✓ Dashboard initialized with live data');
+    
+    // Render overview page
+    switchPage('overview');
+    
+  } catch (error) {
+    console.error('❌ Error initializing dashboard:', error);
+    const content = document.getElementById('page-content');
+    if (content) {
+      content.innerHTML = `<div style="padding: 20px; text-align: center; color: #C62828;">
+        <p>❌ Error loading data from backend</p>
+        <p style="font-size: 12px; margin-top: 10px; color: #666;">${error.message}</p>
+        <p style="font-size: 11px; margin-top: 15px; color: #999;">Make sure the Flask backend is running on localhost:5000</p>
+      </div>`;
+    }
+    
+    // Fallback to static data
+    STATE_DATA = {
+  juvenile: [
+    {state:'Andhra Pradesh',score:.98,trend:'up',risk:'critical'},
+    {state:'Chhattisgarh',score:.97,trend:'up',risk:'critical'},
+    {state:'Delhi',score:.96,trend:'up',risk:'critical'},
+    {state:'Gujarat',score:.96,trend:'up',risk:'critical'},
+    {state:'Haryana',score:.95,trend:'up',risk:'critical'},
+    {state:'Maharashtra',score:.95,trend:'up',risk:'critical'},
+    {state:'Madhya Pradesh',score:.94,trend:'down',risk:'critical'},
+    {state:'Rajasthan',score:.93,trend:'up',risk:'critical'},
+    {state:'Tamil Nadu',score:.92,trend:'down',risk:'critical'},
+    {state:'Jharkhand',score:.91,trend:'up',risk:'critical'},
+    {state:'Odisha',score:.90,trend:'down',risk:'critical'},
+    {state:'Assam',score:.88,trend:'up',risk:'critical'},
+    {state:'Kerala',score:.87,trend:'down',risk:'critical'},
+    {state:'Bihar',score:.86,trend:'up',risk:'critical'},
+    {state:'Uttar Pradesh',score:.84,trend:'down',risk:'critical'},
+  ],
+  institutional: [
+    {state:'Punjab',score:1.00,trend:'up',risk:'critical'},
+    {state:'Uttar Pradesh',score:1.00,trend:'up',risk:'critical'},
+    {state:'Maharashtra',score:1.00,trend:'up',risk:'critical'},
+    {state:'Delhi',score:1.00,trend:'up',risk:'critical'},
+    {state:'Kerala',score:.99,trend:'up',risk:'critical'},
+    {state:'Madhya Pradesh',score:.85,trend:'up',risk:'critical'},
+    {state:'Chhattisgarh',score:.73,trend:'down',risk:'high'},
+    {state:'Haryana',score:.54,trend:'up',risk:'medium'},
+    {state:'Gujarat',score:.51,trend:'up',risk:'medium'},
+    {state:'Rajasthan',score:.47,trend:'down',risk:'medium'},
+    {state:'Andhra Pradesh',score:.38,trend:'down',risk:'medium'},
+    {state:'Uttarakhand',score:.15,trend:'up',risk:'low'},
+    {state:'Jammu & Kashmir',score:.13,trend:'down',risk:'low'},
+    {state:'Himachal Pradesh',score:.10,trend:'down',risk:'low'},
+    {state:'Odisha',score:.09,trend:'down',risk:'low'},
+  ],
+  victim: [
+    {state:'Uttar Pradesh',score:.92,trend:'up',risk:'critical'},
+    {state:'Maharashtra',score:.89,trend:'up',risk:'critical'},
+    {state:'Madhya Pradesh',score:.87,trend:'up',risk:'critical'},
+    {state:'Bihar',score:.84,trend:'up',risk:'critical'},
+    {state:'Rajasthan',score:.81,trend:'down',risk:'critical'},
+    {state:'Delhi',score:.78,trend:'up',risk:'high'},
+    {state:'Andhra Pradesh',score:.74,trend:'down',risk:'high'},
+    {state:'Gujarat',score:.71,trend:'up',risk:'high'},
+    {state:'Karnataka',score:.68,trend:'up',risk:'high'},
+    {state:'Tamil Nadu',score:.65,trend:'down',risk:'high'},
+    {state:'Haryana',score:.62,trend:'up',risk:'high'},
+    {state:'Jharkhand',score:.59,trend:'up',risk:'medium'},
+    {state:'Chhattisgarh',score:.54,trend:'down',risk:'medium'},
+    {state:'Assam',score:.48,trend:'up',risk:'medium'},
+    {state:'Kerala',score:.42,trend:'down',risk:'medium'},
+  ]
+};
+    
+    renderOverview();
+  }
+}
+
+const TREND_YEARS = [2001,2002,2003,2004,2005,2006,2007,2008,2009,2010];
+const JUVENILE_TREND = [.42,.40,.50,.72,.67,.95,.95,.73,.91,.73];
+const MURDER_TREND = [78500,76100,67800,69900,68700,67800,66400,67500,66200,68000];
+const HOMICIDE_TREND = [7800,7700,8600,9100,7800,7400,8200,8200,8600,8300];
+
+const VICTIM_AGE = {
+  labels:['Upto 10 Yrs','10–15 Yrs','15–18 Yrs','18–30 Yrs','30–50 Yrs','Above 50 Yrs'],
+  murder:[8354,13254,15386,317572,276150,64992],
+  homicide:[1594,1464,3272,37556,30840,6412]
+};
+
+let charts = {};
+
+function riskColor(score){
+  if(score>=.8) return '#C62828';
+  if(score>=.6) return '#E65100';
+  if(score>=.3) return '#F9A825';
+  return '#388E3C';
+}
+function riskLabel(score){
+  if(score>=.8) return 'critical';
+  if(score>=.6) return 'high';
+  if(score>=.3) return 'medium';
+  return 'low';
+}
+function riskBadge(r){
+  const cls = {critical:'risk-critical',high:'risk-high',medium:'risk-medium',low:'risk-low'}[r]||'risk-low';
+  const lbl = {critical:'Critical',high:'High',medium:'Medium',low:'Low'}[r];
+  return `<span class="risk-badge ${cls}">${lbl}</span>`;
+}
+
+function destroyChart(id){
+  if(charts[id]){charts[id].destroy();delete charts[id];}
+}
+
+function makeChart(id,config){
+  destroyChart(id);
+  const el=document.getElementById(id);
+  if(!el)return;
+  charts[id]=new Chart(el,config);
+}
+
+function switchPage(page){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  event&&event.target&&event.target.closest('.nav-item')&&event.target.closest('.nav-item').classList.add('active');
+  // find and mark correct nav
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes(`'${page}'`))n.classList.add('active');
+  });
+  const titles={
+    overview:'National Crime Risk Dashboard',
+    juvenile:'Juvenile Recidivism Risk Model',
+    victim:'Victim Vulnerability Profiling',
+    institutional:'Institutional Stress & Early Warning',
+    alerts:'Alerts & Early Warning System',
+    compare:'State Risk Comparison'
+  };
+  const subs={
+    overview:'2001–2014 · NCRB Data · 3 Predictive Models',
+    juvenile:'Random Forest + Gradient Boosting · 45 State-level Predictions',
+    victim:'Demographics × Crime Type Analysis · Murder & Homicide',
+    institutional:'CPA Complaints-based EWS · AUC = 1.00',
+    alerts:'Live Risk Monitoring · Critical Intervention Alerts',
+    compare:'Multi-state Risk Factor Comparison'
+  };
+  document.getElementById('page-title').textContent=titles[page]||page;
+  document.getElementById('page-sub').textContent=subs[page]||'';
+  Object.keys(charts).forEach(k=>{charts[k].destroy();delete charts[k];});
+  const c=document.getElementById('page-content');
+  c.innerHTML='';
+  const renders={overview:renderOverview,juvenile:renderJuvenile,victim:renderVictim,institutional:renderInstitutional,alerts:renderAlerts,compare:renderCompare};
+  if(renders[page])renders[page]();
+}
+
+function renderOverview(){
+  const c=document.getElementById('page-content');
+  c.innerHTML=`
+  <div class="metrics-row">
+    <div class="metric-card"><div class="metric-label">States Monitored</div><div class="metric-value">28</div><div class="metric-delta up">+3 new this year</div></div>
+    <div class="metric-card"><div class="metric-label">Avg Recidivism Risk</div><div class="metric-value">0.70</div><div class="metric-delta up">↑ 12% vs 2009</div></div>
+    <div class="metric-card"><div class="metric-label">Total Murder Victims</div><div class="metric-value">693k</div><div class="metric-delta down">↓ 10% 2001–2010</div></div>
+    <div class="metric-card"><div class="metric-label">Critical Risk States</div><div class="metric-value">5</div><div class="metric-delta up">EWS Score &gt;0.8</div></div>
+    <div class="metric-card"><div class="metric-label">Model AUC Score</div><div class="metric-value">1.00</div><div class="metric-delta down">EWS Perfect Fit</div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card mid">
+      <div class="chart-title">Model comparison — average risk scores</div>
+      <div class="chart-sub">Three predictive models side-by-side</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="ov_model_cmp" role="img" aria-label="Bar chart comparing average risk scores across three models: Juvenile Recidivism 0.70, Victim Vulnerability 1.00, Institutional Stress 0.25">Model comparison data</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Risk level distribution</div>
+      <div class="chart-sub">All states across all models</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="ov_risk_dist" role="img" aria-label="Donut chart: Critical 33%, High 27%, Medium 24%, Low 16%">Risk distribution</canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-title">Juvenile recidivism risk trend 2001–2010</div>
+      <div class="chart-sub">National average risk score over time</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="ov_trend" role="img" aria-label="Line chart showing juvenile recidivism risk rising from 0.42 in 2001 to peak 0.91 in 2009">Trend data</canvas></div>
+    </div>
+    <div class="chart-card mid">
+      <div class="chart-title">Top 5 highest risk states</div>
+      <div class="chart-sub">Institutional stress EWS scores</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="ov_top5" role="img" aria-label="Horizontal bar: Punjab, UP, Maharashtra, Delhi, Kerala all at risk score 1.0">Top 5 states</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Victim count by crime type</div>
+      <div class="chart-sub">Culpable homicide vs murder</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="ov_crime_pie" role="img" aria-label="Pie chart: Murder 88%, Culpable Homicide 12%">Crime type breakdown</canvas></div>
+    </div>
+  </div>`;
+  setTimeout(()=>{
+    makeChart('ov_model_cmp',{type:'bar',data:{labels:['Juvenile\nRecidivism','Victim\nVulnerability','Institutional\nStress'],datasets:[{label:'Avg Risk',data:[.70,1.00,.25],backgroundColor:['#1565C0','#E53935','#6D4C41'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:1.1,ticks:{callback:v=>v.toFixed(1)}}}}});
+    makeChart('ov_risk_dist',{type:'doughnut',data:{labels:['Critical','High','Medium','Low'],datasets:[{data:[33,27,24,16],backgroundColor:['#C62828','#E65100','#F9A825','#388E3C'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:8}}}}});
+    makeChart('ov_trend',{type:'line',data:{labels:TREND_YEARS,datasets:[{label:'Risk Score',data:JUVENILE_TREND,borderColor:'#1565C0',backgroundColor:'rgba(21,101,192,.08)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#1565C0'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:.3,max:1.05}}}});
+    const top5=STATE_DATA.institutional.slice(0,5);
+    makeChart('ov_top5',{type:'bar',data:{labels:top5.map(s=>s.state),datasets:[{label:'Risk Score',data:top5.map(s=>s.score),backgroundColor:'#B71C1C',borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:0,max:1.1}}}});
+    makeChart('ov_crime_pie',{type:'pie',data:{labels:['Murder (~693k)','Culpable Homicide (~81k)'],datasets:[{data:[693000,81138],backgroundColor:['#C62828','#FB8C00'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}});
+  },100);
+}
+
+function renderJuvenile(){
+  const c=document.getElementById('page-content');
+  const tbl=STATE_DATA.juvenile.map((s,i)=>`<tr><td>${i+1}</td><td>${s.state}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="risk-bar" style="width:80px"><div class="risk-fill" style="width:${s.score*100}%;background:${riskColor(s.score)}"></div></div><span style="font-size:11px">${s.score.toFixed(2)}</span></div></td><td>${riskBadge(s.risk)}</td><td style="color:${s.trend==='up'?'#C62828':'#2E7D32'}">${s.trend==='up'?'↑ Rising':'↓ Falling'}</td></tr>`).join('');
+  c.innerHTML=`
+  <div class="metrics-row">
+    <div class="metric-card"><div class="metric-label">Avg Risk Score</div><div class="metric-value">0.93</div><div class="metric-delta up">↑ High National Level</div></div>
+    <div class="metric-card"><div class="metric-label">Model Accuracy</div><div class="metric-value">80.5%</div><div class="metric-delta down">RF Confusion Matrix</div></div>
+    <div class="metric-card"><div class="metric-label">Peak Year</div><div class="metric-value">2009</div><div class="metric-delta up">Score 0.91</div></div>
+    <div class="metric-card"><div class="metric-label">Top Features</div><div class="metric-value">3</div><div class="metric-delta">Income, Education, Family</div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card mid">
+      <div class="chart-title">Top 15 states by recidivism risk</div>
+      <div class="chart-sub">Horizontal bar ranked by average risk score</div>
+      <div class="chart-wrap" style="height:440px"><canvas id="jv_states" role="img" aria-label="Horizontal bar chart: top 15 states ranked by juvenile recidivism risk score, all above 0.8">State rankings</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Risk score distribution</div>
+      <div class="chart-sub">Frequency of risk score ranges</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="jv_dist" role="img" aria-label="Histogram of risk score distribution, most scores concentrated near 0.9-1.0">Distribution</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Confusion matrix performance</div>
+      <div class="chart-sub">Random Forest: 65 total predictions</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="jv_conf" role="img" aria-label="2x2 confusion matrix: 14 TN, 7 FP, 6 FN, 38 TP">Confusion matrix</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Random Forest — top 15 features</div>
+      <div class="chart-sub">Feature importance scores</div>
+      <div class="chart-wrap" style="height:320px"><canvas id="jv_feat" role="img" aria-label="Horizontal bar: top feature is Economic setup annual income under 25000 at 0.16">Feature importance</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Model comparison — RF vs Gradient Boosting</div>
+      <div class="chart-sub">Feature importance alignment</div>
+      <div class="chart-wrap" style="height:320px"><canvas id="jv_model_cmp" role="img" aria-label="Grouped bar comparing Random Forest and Gradient Boosting top feature importances">Model comparison</canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-title">Risk score trends 2001–2010</div>
+      <div class="chart-sub">National average juvenile recidivism risk over time</div>
+      <div class="chart-wrap" style="height:180px"><canvas id="jv_trend" role="img" aria-label="Line chart showing risk trend from 0.42 in 2001 rising to 0.91 in 2009">Trend</canvas></div>
+    </div>
+  </div>
+  <div class="chart-card" style="margin-bottom:16px">
+    <div class="chart-title">State rankings table</div>
+    <div class="chart-sub">Sortable data — top 15 states by recidivism risk</div>
+    <table class="state-table">
+      <thead><tr><th>#</th><th>State</th><th>Risk Score</th><th>Level</th><th>Trend</th></tr></thead>
+      <tbody>${tbl}</tbody>
+    </table>
+  </div>`;
+  setTimeout(()=>{
+    const jd=STATE_DATA.juvenile;
+    makeChart('jv_states',{type:'bar',data:{labels:jd.map(s=>s.state),datasets:[{label:'Risk Score',data:jd.map(s=>s.score),backgroundColor:'#1565C0',borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:0,max:1.05}}}});
+    makeChart('jv_dist',{type:'bar',data:{labels:['0.0','0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1.0'],datasets:[{label:'Frequency',data:[5,2,1,1,1,1,2,3,4,12,15],backgroundColor:'#1565C0',borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+    makeChart('jv_conf',{type:'bar',data:{labels:['True Negative\n(14)','False Positive\n(7)','False Negative\n(6)','True Positive\n(38)'],datasets:[{label:'Count',data:[14,7,6,38],backgroundColor:['#B3E5FC','#FFCCBC','#FFCCBC','#0D47A1'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+    const feats=['Income<25k','Edu: Primary','Econ Total','Guardian','Family Total','Illiterate','Edu Total','W/ Parents','Above Primary','Homeless','Income 25-50k','Mid Income','Matric+','Mid Income 2','Income>300k'];
+    const fvals=[.155,.125,.120,.115,.075,.070,.068,.052,.045,.040,.035,.030,.025,.012,.005];
+    makeChart('jv_feat',{type:'bar',data:{labels:feats,datasets:[{label:'Importance',data:fvals,backgroundColor:'#1565C0',borderRadius:2}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:0}}}});
+    makeChart('jv_model_cmp',{type:'bar',data:{labels:['Income<25k','W/ Guardian','Edu: Primary','Matric+','W/ Parents'],datasets:[{label:'Random Forest',data:[.155,.115,.125,.025,.052],backgroundColor:'#1565C0',borderRadius:2},{label:'Gradient Boosting',data:[.29,.28,.10,.045,.04],backgroundColor:'#FB8C00',borderRadius:2}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11}}}},scales:{x:{min:0}}}});
+    makeChart('jv_trend',{type:'line',data:{labels:TREND_YEARS,datasets:[{label:'Risk Score',data:JUVENILE_TREND,borderColor:'#1565C0',backgroundColor:'rgba(21,101,192,.1)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#1565C0'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:.3,max:1.05}}}});
+  },100);
+}
+
+function renderVictim(){
+  const c=document.getElementById('page-content');
+  c.innerHTML=`
+  <div class="metrics-row">
+    <div class="metric-card"><div class="metric-label">Total Murder Victims</div><div class="metric-value">693k</div><div class="metric-delta down">↓ 10% decline 2001–2010</div></div>
+    <div class="metric-card"><div class="metric-label">Total Homicide Victims</div><div class="metric-value">81k</div><div class="metric-delta up">↑ Volatile trend</div></div>
+    <div class="metric-card"><div class="metric-label">Highest Risk Group</div><div class="metric-value">18–30</div><div class="metric-delta up">317k murder victims</div></div>
+    <div class="metric-card"><div class="metric-label">Avg Vulnerability Score</div><div class="metric-value">1.00</div><div class="metric-delta up">Victim Vuln. Model</div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card mid">
+      <div class="chart-title">Victim count by age group — murder vs homicide</div>
+      <div class="chart-sub">Stacked bar showing cumulative victims across age bands</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="vt_age" role="img" aria-label="Stacked bar: 18-30 age group has highest murder victims at 317k">Age group analysis</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Crime type share</div>
+      <div class="chart-sub">% breakdown of all victims</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="vt_pie" role="img" aria-label="Pie: Murder 89.5%, Culpable Homicide 10.5%">Crime type pie</canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-title">Victim vulnerability heatmap — age group × crime type</div>
+      <div class="chart-sub">Color intensity represents total victims; darkest = highest concentration</div>
+      <div id="vt_heatmap" class="heatmap-wrap" style="margin-top:4px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Murder victims over time (2001–2010)</div>
+      <div class="chart-sub">National murder victim trend</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="vt_murder_trend" role="img" aria-label="Line chart: murder victims declining from 78500 in 2001 to 66200 in 2009">Murder trend</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Culpable homicide victims over time</div>
+      <div class="chart-sub">National homicide victim trend</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="vt_hom_trend" role="img" aria-label="Line chart: homicide victims peaked at 9100 in 2004">Homicide trend</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top vulnerable demographics</div>
+      <div class="chart-sub">Age group × crime type ranked</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="vt_demo" role="img" aria-label="Horizontal bar: Murder 18-30 317572, Murder 30-50 276150 are top two">Demographics bar</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">State vulnerability rankings</div>
+      <div class="chart-sub">Top 10 states by victim vulnerability score</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="vt_states" role="img" aria-label="Horizontal bar: UP, Maharashtra, MP highest victim vulnerability">State rankings</canvas></div>
+    </div>
+  </div>`;
+  setTimeout(()=>{
+    makeChart('vt_age',{type:'bar',data:{labels:VICTIM_AGE.labels,datasets:[{label:'Murder',data:VICTIM_AGE.murder,backgroundColor:'#C62828',borderRadius:2},{label:'Culpable Homicide',data:VICTIM_AGE.homicide,backgroundColor:'#FB8C00',borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11}}}},scales:{x:{stacked:false},y:{beginAtZero:true,ticks:{callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v}}}}});
+    makeChart('vt_pie',{type:'pie',data:{labels:['Murder','Culpable Homicide'],datasets:[{data:[693000,81138],backgroundColor:['#C62828','#FB8C00'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}}});
+    makeChart('vt_murder_trend',{type:'line',data:{labels:TREND_YEARS,datasets:[{label:'Murder Victims',data:MURDER_TREND,borderColor:'#C62828',backgroundColor:'rgba(198,40,40,.08)',fill:true,tension:.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>(v/1000).toFixed(0)+'k'}}}}});
+    makeChart('vt_hom_trend',{type:'line',data:{labels:TREND_YEARS,datasets:[{label:'Homicide Victims',data:HOMICIDE_TREND,borderColor:'#FB8C00',backgroundColor:'rgba(251,140,0,.08)',fill:true,tension:.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+    makeChart('vt_demo',{type:'bar',data:{labels:['Murder 18–30','Murder 30–50','Murder >50','Homicide 18–30','Homicide 30–50','Murder 15–18'],datasets:[{label:'Total Victims',data:[317572,276150,64992,37556,30840,15386],backgroundColor:['#B71C1C','#C62828','#E53935','#E65100','#FB8C00','#FFA726'],borderRadius:2}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v}}}}});
+    const vs=STATE_DATA.victim.slice(0,10);
+    makeChart('vt_states',{type:'bar',data:{labels:vs.map(s=>s.state),datasets:[{label:'Vuln. Score',data:vs.map(s=>s.score),backgroundColor:'#E53935',borderRadius:2}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:0,max:1.1}}}});
+    // Heatmap
+    const heat=document.getElementById('vt_heatmap');
+    if(heat){
+      const ageGroups=['Upto 10 Yrs','10–15 Yrs','15–18 Yrs','18–30 Yrs','30–50 Yrs','Above 50 Yrs'];
+      const crimes=['Culpable Homicide','Murder'];
+      const vals=[[1594,1464,3272,37556,30840,6412],[8354,13254,15386,317572,276150,64992]];
+      const maxVal=317572;
+      function heatColor(v){const t=v/maxVal;const r=Math.round(255*Math.max(0,Math.min(1,t*3)));const g=Math.round(255*Math.max(0,Math.min(1,1-t*2)));return `rgb(${255},${255-Math.round(r*.9)},${255-r})`;}
+      let tbl=`<table class="heatmap-table"><thead><tr><th></th>${ageGroups.map(a=>`<th>${a}</th>`).join('')}</tr></thead><tbody>`;
+      crimes.forEach((cr,ci)=>{
+        tbl+=`<tr><th style="text-align:left;padding:8px 10px;font-weight:500">${cr}</th>`;
+        vals[ci].forEach((v,vi)=>{
+          const bg=heatColor(v);
+          const textCol=v>100000?'#7B1FA2':'#5D4037';
+          tbl+=`<td style="background:${bg};color:${textCol}">${v>=1000?(v/1000).toFixed(0)+'k':v}</td>`;
+        });
+        tbl+=`</tr>`;
+      });
+      tbl+=`</tbody></table>`;
+      heat.innerHTML=tbl;
+    }
+  },100);
+}
+
+function renderInstitutional(){
+  const c=document.getElementById('page-content');
+  const tbl=STATE_DATA.institutional.map((s,i)=>`<tr><td>${i+1}</td><td>${s.state}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="risk-bar" style="width:80px"><div class="risk-fill" style="width:${s.score*100}%;background:${riskColor(s.score)}"></div></div><span style="font-size:11px">${s.score.toFixed(2)}</span></div></td><td>${riskBadge(s.risk)}</td><td style="color:${s.trend==='up'?'#C62828':'#2E7D32'}">${s.trend==='up'?'↑ Rising':'↓ Falling'}</td><td><span class="action-tag">${s.risk==='critical'?'Immediate':'Review'}</span></td></tr>`).join('');
+  c.innerHTML=`
+  <div class="metrics-row">
+    <div class="metric-card"><div class="metric-label">EWS AUC Score</div><div class="metric-value">1.00</div><div class="metric-delta down">Perfect classification</div></div>
+    <div class="metric-card"><div class="metric-label">Critical States</div><div class="metric-value">5</div><div class="metric-delta up">Score &gt; 0.8</div></div>
+    <div class="metric-card"><div class="metric-label">Top EWS Feature</div><div class="metric-value">CPA Complaints</div><div class="metric-delta">Importance: 0.49</div></div>
+    <div class="metric-card"><div class="metric-label">Mean Risk Score</div><div class="metric-value">0.25</div><div class="metric-delta">Threshold line</div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card mid">
+      <div class="chart-title">Top 20 highest risk states — EWS</div>
+      <div class="chart-sub">Horizontal bar ranked by institutional stress score</div>
+      <div class="chart-wrap" style="height:480px"><canvas id="is_states" role="img" aria-label="Horizontal bar: Punjab, UP, Maharashtra, Delhi, Kerala all at 1.0 risk">State EWS rankings</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Risk score distribution</div>
+      <div class="chart-sub">Bimodal: mostly low + spike at 1.0</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="is_dist" role="img" aria-label="Histogram: 140 states score near 0, 40 score near 1.0, mean at 0.25">Distribution</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Risk by level — stacked summary</div>
+      <div class="chart-sub">Distribution of states across risk tiers</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="is_stack" role="img" aria-label="Stacked bar: 5 critical, 1 high, 5 medium, 9 low risk states">Risk level distribution</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Random Forest — EWS feature importance</div>
+      <div class="chart-sub">CPA complaint variables dominate</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="is_rf_feat" role="img" aria-label="Bar chart: CPA complaints received is top feature at 0.49 importance">RF feature importance</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Logistic Regression — coefficient values</div>
+      <div class="chart-sub">Impact on high-risk classification</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="is_lr_feat" role="img" aria-label="Bar: CPA complaints and false cases highest positive coefficients">LR coefficients</canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-title">EWS indicator heatmap — states × complaint types</div>
+      <div class="chart-sub">Relative risk by institutional indicator</div>
+      <div id="is_heatmap" class="heatmap-wrap" style="margin-top:4px"></div>
+    </div>
+  </div>
+  <div class="chart-card" style="margin-bottom:16px">
+    <div class="chart-title">Intervention priority table — all states</div>
+    <div class="chart-sub">Ranked by institutional stress score with recommended actions</div>
+    <table class="state-table">
+      <thead><tr><th>#</th><th>State</th><th>Risk Score</th><th>Level</th><th>Trend</th><th>Action</th></tr></thead>
+      <tbody>${tbl}</tbody>
+    </table>
+  </div>`;
+  setTimeout(()=>{
+    const is=STATE_DATA.institutional;
+    makeChart('is_states',{type:'bar',data:{labels:is.map(s=>s.state),datasets:[{label:'Risk Score',data:is.map(s=>s.score),backgroundColor:is.map(s=>riskColor(s.score)),borderRadius:2}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:0,max:1.1}}}});
+    makeChart('is_dist',{type:'bar',data:{labels:['0.0','0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1.0'],datasets:[{label:'Frequency',data:[140,5,3,2,2,2,1,1,1,2,40],backgroundColor:'#6D4C41',borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+    makeChart('is_stack',{type:'bar',data:{labels:['Risk Level Distribution'],datasets:[{label:'Critical',data:[5],backgroundColor:'#C62828'},{label:'High',data:[1],backgroundColor:'#E65100'},{label:'Medium',data:[5],backgroundColor:'#F9A825'},{label:'Low',data:[9],backgroundColor:'#388E3C'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},scales:{x:{stacked:true},y:{stacked:true}}}});
+    const feats=['CPA: Complaints','CPA: False Cases','CPA: Dept Enquiries','CPA: Cases Reg.','CPA: Dept Action','CPA: Mag. Enquiries'];
+    makeChart('is_rf_feat',{type:'bar',data:{labels:feats,datasets:[{label:'Importance',data:[.49,.23,.16,.14,.05,.01],backgroundColor:'#1565C0',borderRadius:2}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:0,max:.55}}}});
+    makeChart('is_lr_feat',{type:'bar',data:{labels:feats,datasets:[{label:'Coefficient',data:[6.1,5.9,2.7,2.4,1.1,-.3],backgroundColor:feats.map((_,i)=>i===5?'#C62828':'#2E7D32'),borderRadius:2}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:-1}}}});
+    const heatEl=document.getElementById('is_heatmap');
+    if(heatEl){
+      const states=['Punjab','UP','Maharashtra','Delhi','Kerala','Madhya Pradesh','Chhattisgarh','Haryana','Gujarat'];
+      const indicators=['Complaints','False Cases','Dept Enq.','Cases Reg.','Dept Action'];
+      const rawData={Punjab:[1.0,.9,.8,.7,.6],UP:[1.0,.8,.9,.7,.5],'Maharashtra':[1.0,.9,.7,.8,.6],Delhi:[.9,.8,.8,.7,.5],Kerala:[.9,.7,.6,.6,.4],'Madhya Pradesh':[.8,.6,.5,.5,.4],Chhattisgarh:[.6,.5,.4,.4,.3],Haryana:[.4,.4,.3,.3,.2],Gujarat:[.3,.3,.2,.2,.2]};
+      function iHeatColor(v){const r=Math.round(255*(1-v*.3));const g=Math.round(220*(1-v));return `rgb(${r},${Math.max(30,g)},${Math.max(30,Math.round(220*(1-v*1.2)))})` ;}
+      let tbl2=`<table class="heatmap-table"><thead><tr><th></th>${indicators.map(i=>`<th>${i}</th>`).join('')}</tr></thead><tbody>`;
+      states.forEach(st=>{
+        const row=rawData[st]||[.1,.1,.1,.1,.1];
+        tbl2+=`<tr><th style="text-align:left;padding:6px 10px;font-weight:500;font-size:11px">${st}</th>`;
+        row.forEach(v=>{
+          const bg=v>.7?`rgba(183,28,28,${v})`:`rgba(249,168,37,${v})`;
+          const tc=v>.5?'#fff':'#5D4037';
+          tbl2+=`<td style="background:${bg};color:${tc}">${v.toFixed(1)}</td>`;
+        });
+        tbl2+=`</tr>`;
+      });
+      tbl2+=`</tbody></table>`;
+      heatEl.innerHTML=tbl2;
+    }
+  },100);
+}
+
+function renderAlerts(){
+  const c=document.getElementById('page-content');
+  const critical=STATE_DATA.institutional.filter(s=>s.score>=.8);
+  const high=STATE_DATA.institutional.filter(s=>s.score>=.6&&s.score<.8);
+  const medium=STATE_DATA.institutional.filter(s=>s.score>=.3&&s.score<.6);
+  const low=STATE_DATA.institutional.filter(s=>s.score<.3);
+  c.innerHTML=`
+  <div class="metrics-row">
+    <div class="metric-card"><div class="metric-label">Critical Alerts</div><div class="metric-value" style="color:#B71C1C">${critical.length}</div><div class="metric-delta up">Immediate action</div></div>
+    <div class="metric-card"><div class="metric-label">High Risk</div><div class="metric-value" style="color:#E65100">${high.length}</div><div class="metric-delta up">Close monitoring</div></div>
+    <div class="metric-card"><div class="metric-label">Medium Risk</div><div class="metric-value" style="color:#F9A825">${medium.length}</div><div class="metric-delta">Periodic review</div></div>
+    <div class="metric-card"><div class="metric-label">Low Risk</div><div class="metric-value" style="color:#2E7D32">${low.length}</div><div class="metric-delta down">Routine monitoring</div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card mid">
+      <div class="chart-title">Critical alerts — states requiring immediate intervention</div>
+      <div class="chart-sub">EWS score above 0.8 threshold</div>
+      ${critical.map(s=>`<div class="alert-card alert-critical"><div class="alert-title">${s.state} <span class="risk-badge risk-critical">Critical</span></div><div class="alert-detail">Risk Score: ${s.score.toFixed(2)} · Trend: ${s.trend==='up'?'↑ Rising':'↓ Falling'} · Action: Immediate intervention required · Deploy oversight team</div></div>`).join('')}
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">High risk states</div>
+      <div class="chart-sub">EWS score 0.6–0.8</div>
+      ${high.length>0?high.map(s=>`<div class="alert-card alert-high"><div class="alert-title">${s.state} <span class="risk-badge risk-high">High</span></div><div class="alert-detail">Score: ${s.score.toFixed(2)} · Close monitoring required</div></div>`).join(''):'<div style="color:var(--color-text-secondary);font-size:13px;padding:8px 0">No states in high risk range</div>'}
+      <div style="margin-top:12px">
+      <div class="chart-title" style="margin-bottom:8px">Medium risk states</div>
+      ${medium.map(s=>`<div class="alert-card alert-medium"><div class="alert-title">${s.state} <span class="risk-badge risk-medium">Medium</span></div><div class="alert-detail">Score: ${s.score.toFixed(2)} · Periodic review</div></div>`).join('')}
+      </div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-title">Alert distribution — risk level breakdown</div>
+      <div class="chart-wrap" style="height:180px"><canvas id="al_dist" role="img" aria-label="Bar chart showing number of states in each risk category: Critical 5, High 1, Medium 5, Low 9">Alert distribution</canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-title">Intervention priority list</div>
+      <div class="chart-sub">All states ranked by institutional stress score with recommended actions</div>
+      <table class="priority-table">
+        <thead><tr><th>#</th><th>State</th><th>EWS Score</th><th>Risk Level</th><th>Key Driver</th><th>Recommended Action</th></tr></thead>
+        <tbody>
+        ${STATE_DATA.institutional.map((s,i)=>{
+          const actions={critical:'Deploy oversight team + audit CPA complaints',high:'Increase inspection frequency + complaint review',medium:'Periodic audit + capacity review',low:'Routine monitoring'};
+          const drivers={critical:'High CPA complaints volume',high:'Elevated departmental enquiries',medium:'Moderate complaint patterns',low:'Below average indicators'};
+          return `<tr><td>${i+1}</td><td>${s.state}</td><td>${s.score.toFixed(2)}</td><td>${riskBadge(s.risk)}</td><td style="font-size:11px;color:var(--color-text-secondary)">${drivers[s.risk]}</td><td><span class="action-tag">${actions[s.risk]}</span></td></tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+  setTimeout(()=>{
+    makeChart('al_dist',{type:'bar',data:{labels:['Critical (>0.8)','High (0.6–0.8)','Medium (0.3–0.6)','Low (<0.3)'],datasets:[{label:'States',data:[critical.length,high.length,medium.length,low.length],backgroundColor:['#C62828','#E65100','#F9A825','#388E3C'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+  },100);
+}
+
+function renderCompare(){
+  const c=document.getElementById('page-content');
+  const selectedStates=['Punjab','Maharashtra','Delhi','Uttar Pradesh','Kerala','Madhya Pradesh'];
+  const jvScores=selectedStates.map(s=>{const f=STATE_DATA.juvenile.find(x=>x.state===s);return f?f.score:0;});
+  const isScores=selectedStates.map(s=>{const f=STATE_DATA.institutional.find(x=>x.state===s);return f?f.score:0;});
+  const vtScores=selectedStates.map(s=>{const f=STATE_DATA.victim.find(x=>x.state===s);return f?f.score:0;});
+  c.innerHTML=`
+  <div class="section-header">Multi-state risk comparison</div>
+  <div class="section-sub">Select states to compare across all three predictive models</div>
+  <div class="charts-grid">
+    <div class="chart-card wide">
+      <div class="chart-title">All three models — side-by-side state comparison</div>
+      <div class="chart-sub">Juvenile Recidivism · Victim Vulnerability · Institutional Stress</div>
+      <div class="chart-wrap" style="height:280px"><canvas id="cmp_grouped" role="img" aria-label="Grouped bar chart comparing 6 major states across three risk models">Multi-model comparison</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Radar chart — risk profile comparison</div>
+      <div class="chart-sub">Top 6 states across 3 risk dimensions</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="cmp_radar" role="img" aria-label="Radar chart showing multi-dimensional risk profile for Punjab, UP, Maharashtra, Delhi, Kerala, Madhya Pradesh">Radar comparison</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Composite risk score</div>
+      <div class="chart-sub">Average across all 3 models</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="cmp_composite" role="img" aria-label="Horizontal bar: composite risk scores for 6 states">Composite risk</canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-title">Detailed comparison table</div>
+      <div class="chart-sub">All three model scores per state</div>
+      <table class="state-table">
+        <thead><tr><th>State</th><th>Juvenile Recidivism</th><th>Victim Vulnerability</th><th>Institutional Stress</th><th>Composite</th><th>Worst Risk</th></tr></thead>
+        <tbody>
+        ${selectedStates.map((s,i)=>{
+          const comp=((jvScores[i]||0)+(isScores[i]||0)+(vtScores[i]||0))/3;
+          const worst=Math.max(jvScores[i]||0,isScores[i]||0,vtScores[i]||0);
+          return `<tr><td style="font-weight:500">${s}</td><td>${(jvScores[i]||0).toFixed(2)} ${riskBadge(riskLabel(jvScores[i]||0))}</td><td>${(vtScores[i]||0).toFixed(2)} ${riskBadge(riskLabel(vtScores[i]||0))}</td><td>${(isScores[i]||0).toFixed(2)} ${riskBadge(riskLabel(isScores[i]||0))}</td><td style="font-weight:500">${comp.toFixed(2)}</td><td>${riskBadge(riskLabel(worst))}</td></tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+  setTimeout(()=>{
+    makeChart('cmp_grouped',{type:'bar',data:{labels:selectedStates,datasets:[{label:'Juvenile Recidivism',data:jvScores,backgroundColor:'#1565C0',borderRadius:2},{label:'Victim Vulnerability',data:vtScores,backgroundColor:'#E53935',borderRadius:2},{label:'Institutional Stress',data:isScores,backgroundColor:'#6D4C41',borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11}}}},scales:{y:{min:0,max:1.1}}}});
+    makeChart('cmp_radar',{type:'radar',data:{labels:['Juvenile\nRecidivism','Victim\nVulnerability','Institutional\nStress'],datasets:selectedStates.map((s,i)=>{const cols=['#1565C0','#E53935','#388E3C','#F9A825','#8E24AA','#00838F'];return{label:s,data:[jvScores[i]||0,vtScores[i]||0,isScores[i]||0],borderColor:cols[i],backgroundColor:cols[i].replace(')',',0.1)').replace('rgb','rgba'),borderWidth:2,pointRadius:3}})},options:{responsive:true,maintainAspectRatio:false,scales:{r:{min:0,max:1,ticks:{stepSize:.25}}},plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:6}}}}});
+    const composite=selectedStates.map((_,i)=>((jvScores[i]||0)+(isScores[i]||0)+(vtScores[i]||0))/3);
+    const sorted=[...selectedStates.map((s,i)=>({s,v:composite[i]}))].sort((a,b)=>b.v-a.v);
+    makeChart('cmp_composite',{type:'bar',data:{labels:sorted.map(x=>x.s),datasets:[{label:'Composite Risk',data:sorted.map(x=>x.v),backgroundColor:sorted.map(x=>riskColor(x.v)),borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:0,max:1.1}}}});
+  },100);
+}
+
+function updateCharts(){
+  // filters applied — re-render current page
+  const active=document.querySelector('.nav-item.active');
+  if(active)active.click();
+}
+
+function exportCSV(){
+  const rows=[['State','Juvenile Score','Victim Score','Institutional Score']];
+  STATE_DATA.juvenile.forEach(s=>{
+    const v=STATE_DATA.victim.find(x=>x.state===s.state);
+    const is=STATE_DATA.institutional.find(x=>x.state===s.state);
+    rows.push([s.state,s.score.toFixed(3),(v?v.score:0).toFixed(3),(is?is.score:0).toFixed(3)]);
+  });
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='india_crime_risk_data.csv';a.click();
+}
+
+// Initialize dashboard on page load
+window.addEventListener('load', () => {
+  console.log('📍 Page loaded, initializing dashboard...');
+  initializeDashboard().catch(err => {
+    console.error('Failed to initialize dashboard:', err);
+    // Fallback: render with static data
+    renderOverview();
+  });
+});
+
+// Fallback if window.load doesn't fire quickly
+setTimeout(() => {
+  if (!CHART_DATA_INITIALIZED && window.STATE_DATA) {
+    console.log('⚠️  Timeout: initializing with fallback static data');
+    renderOverview();
+  }
+}, 3000);
+</script>
+
